@@ -1,0 +1,33 @@
+# Forex Trading Bot Configuration
+
+strategy:
+  rsi_period: 14
+#  rsi_oversold: 30
+  rsi_oversold: 35
+  rsi_overbought: 70
+  timeframe: '1h'
+
+risk:
+  starting_capital: 1000.0
+  risk_per_trade: 0.05
+  profit_target: 0.10
+  stop_loss: 0.03
+
+symbols:
+  - 'EUR/USD'
+  - 'GBP/USD'
+  - 'USD/JPY'
+
+error_handling:
+  max_retries: 3
+  retry_delay: 5
+  api_timeout: 10
+
+logging:
+  console_level: 'INFO'
+  file_level: 'DEBUG'
+  log_directory: 'logs'
+
+bot:
+  sleep_seconds: 3600
+  simulation: true
