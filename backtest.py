@@ -1,6 +1,7 @@
 """
 Backtesting Framework for Forex Trading Bot
 Tests trading strategies on historical data to evaluate performance
+NOW WITH REAL DATA SUPPORT!
 """
 
 import pandas as pd
@@ -8,6 +9,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from logger_config import setup_logger
 from config_loader import Config
+from data_fetcher import ForexDataFetcher
 
 # Initialize
 logger = setup_logger('Backtest')
@@ -26,58 +28,34 @@ STOP_LOSS = config.get('risk.stop_loss', 0.03)
 class BacktestEngine:
     """
     Backtesting engine that simulates trading on historical data
-    
-    Usage:
-        engine = BacktestEngine(symbol='EUR/USD', start_date='2024-01-01')
-        results = engine.run_backtest()
-        engine.print_results()
     """
     
     def __init__(self, symbol='EUR/USD', start_date=None, end_date=None):
-        """
-        Initialize backtest engine
-        
-        Args:
-            symbol (str): Trading pair (e.g., 'EUR/USD')
-            start_date (str): Start date 'YYYY-MM-DD' (default: 6 months ago)
-            end_date (str): End date 'YYYY-MM-DD' (default: today)
-        """
+        """Initialize backtest engine"""
         self.symbol = symbol
         
-        # Set default dates if not provided
         if end_date is None:
             self.end_date = datetime.now()
         else:
             self.end_date = datetime.strptime(end_date, '%Y-%m-%d')
         
         if start_date is None:
-            self.start_date = self.end_date - timedelta(days=180)  # 6 months
+            self.start_date = self.end_date - timedelta(days=180)
         else:
             self.start_date = datetime.strptime(start_date, '%Y-%m-%d')
         
-        # Trading state
         self.capital = STARTING_CAPITAL
-        self.position = None  # Current position (None, 'LONG')
+        self.position = None
         self.entry_price = 0.0
         self.position_size = 0.0
         
-        # Track performance
         self.trades = []
         self.equity_curve = []
         
         logger.info(f"Backtest initialized: {symbol} from {self.start_date.date()} to {self.end_date.date()}")
     
     def calculate_rsi(self, prices, period=14):
-        """
-        Calculate RSI indicator
-        
-        Args:
-            prices (list/array): Price data
-            period (int): RSI period
-        
-        Returns:
-            float: RSI value or None
-        """
+        """Calculate RSI indicator"""
         try:
             if len(prices) < period + 1:
                 return None
@@ -101,57 +79,35 @@ class BacktestEngine:
             logger.error(f"Error calculating RSI: {e}")
             return None
     
-    def generate_sample_data(self, days=180):
+    def fetch_real_data(self):
         """
-        Generate sample historical price data for testing
-        
-        In production, you'd fetch real data from an API
-        This creates realistic-looking data for demonstration
-        
-        Args:
-            days (int): Number of days of data to generate
+        Fetch REAL historical forex data from Yahoo Finance
         
         Returns:
-            pandas.DataFrame: Price data with dates
+            pandas.DataFrame: Real price data with dates
         """
-        logger.info(f"Generating {days} days of sample price data...")
+        logger.info(f"🌐 Fetching REAL historical data for {self.symbol}...")
         
-        # Starting price (realistic for EUR/USD)
-        base_price = 1.10
+        fetcher = ForexDataFetcher()
         
-        # Generate dates
-        dates = pd.date_range(start=self.start_date, periods=days, freq='D')
+        start_str = self.start_date.strftime('%Y-%m-%d')
+        end_str = self.end_date.strftime('%Y-%m-%d')
         
-        # Generate realistic price movements
-        # Random walk with slight upward bias
-        np.random.seed(42)  # For reproducibility
-        returns = np.random.normal(0.0001, 0.005, days)  # Small daily returns
+        df = fetcher.fetch_forex_data(self.symbol, start_str, end_str)
         
-        prices = [base_price]
-        for ret in returns[1:]:
-            new_price = prices[-1] * (1 + ret)
-            prices.append(new_price)
+        if df is None:
+            logger.error("Failed to fetch real data!")
+            logger.warning("This backtest cannot proceed without data")
+            return None
         
-        # Create DataFrame
-        df = pd.DataFrame({
-            'date': dates,
-            'close': prices
-        })
-        
-        logger.info(f"Generated data: {len(df)} days, range ${df['close'].min():.5f} - ${df['close'].max():.5f}")
+        logger.info(f"✅ Using REAL market data: {len(df)} days")
         
         return df
     
     def open_position(self, date, price):
-        """
-        Open a long position
-        
-        Args:
-            date: Trade date
-            price: Entry price
-        """
+        """Open a long position"""
         if self.position is not None:
-            return  # Already in position
+            return
         
         trade_size = self.capital * RISK_PER_TRADE
         self.position = 'LONG'
@@ -161,30 +117,17 @@ class BacktestEngine:
         logger.debug(f"{date.date()}: OPEN LONG @ ${price:.5f}, size: {self.position_size:.2f} units")
     
     def close_position(self, date, price, reason='SIGNAL'):
-        """
-        Close current position
-        
-        Args:
-            date: Trade date
-            price: Exit price
-            reason: Reason for closing
-        
-        Returns:
-            dict: Trade details
-        """
+        """Close current position"""
         if self.position is None:
             return None
         
-        # Calculate profit/loss
         exit_value = self.position_size * price
         entry_value = self.position_size * self.entry_price
         profit = exit_value - entry_value
         profit_pct = (price - self.entry_price) / self.entry_price
         
-        # Update capital
         self.capital += profit
         
-        # Record trade
         trade = {
             'entry_date': self.entry_date,
             'exit_date': date,
@@ -199,7 +142,6 @@ class BacktestEngine:
         
         logger.debug(f"{date.date()}: CLOSE @ ${price:.5f}, P/L: ${profit:.2f} ({profit_pct*100:.2f}%), Reason: {reason}")
         
-        # Reset position
         self.position = None
         self.entry_price = 0.0
         self.position_size = 0.0
@@ -207,32 +149,29 @@ class BacktestEngine:
         return trade
     
     def run_backtest(self):
-        """
-        Run the backtest on historical data
-        
-        Returns:
-            dict: Backtest results
-        """
+        """Run the backtest on historical data"""
         logger.info("=" * 70)
-        logger.info("STARTING BACKTEST")
+        logger.info("STARTING BACKTEST - REAL DATA MODE")
         logger.info("=" * 70)
         
-        # Get historical data (using sample data for now)
-        df = self.generate_sample_data(days=int((self.end_date - self.start_date).days))
+        # Fetch REAL data from Yahoo Finance!
+        df = self.fetch_real_data()
+        
+        if df is None or len(df) == 0:
+            logger.error("No data available for backtest!")
+            return self.calculate_results()
         
         # Run through each day
         for i in range(RSI_PERIOD + 1, len(df)):
             date = df.iloc[i]['date']
             price = df.iloc[i]['close']
             
-            # Calculate RSI
             recent_prices = df.iloc[i-RSI_PERIOD-1:i+1]['close'].values
             rsi = self.calculate_rsi(recent_prices, RSI_PERIOD)
             
             if rsi is None:
                 continue
             
-            # Track equity
             current_equity = self.capital
             if self.position == 'LONG':
                 current_equity += (self.position_size * price) - (self.position_size * self.entry_price)
@@ -241,29 +180,18 @@ class BacktestEngine:
                 'equity': current_equity
             })
             
-            # Check if we're in a position
             if self.position == 'LONG':
-                # Check exit conditions
-                
-                # 1. Profit target
                 if price >= self.entry_price * (1 + PROFIT_TARGET):
                     self.close_position(date, price, 'PROFIT_TARGET')
-                
-                # 2. Stop loss
                 elif price <= self.entry_price * (1 - STOP_LOSS):
                     self.close_position(date, price, 'STOP_LOSS')
-                
-                # 3. RSI overbought
                 elif rsi >= RSI_OVERBOUGHT:
                     self.close_position(date, price, 'RSI_OVERBOUGHT')
-            
             else:
-                # Check entry conditions
                 if rsi <= RSI_OVERSOLD:
                     self.entry_date = date
                     self.open_position(date, price)
         
-        # Close any open position at end
         if self.position == 'LONG':
             final_price = df.iloc[-1]['close']
             final_date = df.iloc[-1]['date']
@@ -276,12 +204,7 @@ class BacktestEngine:
         return self.calculate_results()
     
     def calculate_results(self):
-        """
-        Calculate performance metrics
-        
-        Returns:
-            dict: Performance statistics
-        """
+        """Calculate performance metrics"""
         if not self.trades:
             logger.warning("No trades executed during backtest!")
             return {
@@ -321,7 +244,7 @@ class BacktestEngine:
         results = self.calculate_results()
         
         print("\n" + "=" * 70)
-        print("📊 BACKTEST RESULTS")
+        print("📊 BACKTEST RESULTS - REAL DATA")
         print("=" * 70)
         print(f"Symbol: {self.symbol}")
         print(f"Period: {self.start_date.date()} to {self.end_date.date()}")
@@ -347,7 +270,6 @@ class BacktestEngine:
         
         print("\n" + "=" * 70)
         
-        # Show sample trades
         if len(self.trades) > 0:
             print("\n📜 SAMPLE TRADES (First 5):")
             print("-" * 70)
@@ -364,28 +286,24 @@ class BacktestEngine:
 
 
 def main():
-    """Run a sample backtest"""
-    print("\n🚀 FOREX TRADING BOT - BACKTESTING ENGINE")
+    """Run a backtest on REAL data"""
+    print("\n🚀 FOREX TRADING BOT - BACKTESTING ENGINE (REAL DATA)")
     print("=" * 70)
     
-    # Create backtest engine
     engine = BacktestEngine(
         symbol='EUR/USD',
-        start_date='2024-04-01',  # 6 months ago
+        start_date='2024-04-01',
         end_date='2024-10-01'
     )
     
-    # Run backtest
     results = engine.run_backtest()
     
-    # Print results
     engine.print_results()
     
-    # Analysis
     if results['total_return'] > 0:
-        print("✅ Strategy was PROFITABLE!")
+        print("✅ Strategy was PROFITABLE on REAL data!")
     else:
-        print("❌ Strategy LOST money - needs optimization")
+        print("❌ Strategy LOST money on REAL data - needs optimization")
     
     if results['win_rate'] > 50:
         print(f"✅ Win rate above 50%: {results['win_rate']:.1f}%")
@@ -393,14 +311,10 @@ def main():
         print(f"⚠️  Win rate below 50%: {results['win_rate']:.1f}%")
     
     print("\n" + "=" * 70)
-    print("💡 Next steps:")
-    print("  - Try different RSI values (edit config.yaml)")
-    print("  - Test on different time periods")
-    print("  - Add more currency pairs")
-    print("  - Create performance charts (Day 3)")
+    print("💡 This was tested on REAL 2024 market data!")
+    print("   Next: Try different settings, time periods, or pairs")
     print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
     main()
-
