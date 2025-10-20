@@ -358,3 +358,75 @@ For questions or issues:
 
 **⚡ Built with Python | 📊 Trading Strategy | 🤖 Automated | 📈 Portfolio Project**
 
+## 🎮 Paper Trading (Week 3)
+
+### Features:
+- Real-time market data via yfinance
+- Simulation mode for offline testing
+- Live trade execution monitoring
+- Performance tracking and reporting
+
+### Usage:
+```bash
+# Simulation mode (test anytime):
+python run_simulation.py
+
+# Live mode (when market open):
+python run_paper_trading.py
+```
+
+### Results So Far:
+- Backtested: +8.82% return, 65.6% win rate
+- Walk-forward: 80% consistency
+- Monte Carlo: 0% risk of ruin
+- Paper trade 1: -0.13% (working as designed!)
+```
+
+---
+
+## 🎯 **OPTION 6: LEARN MORE ABOUT FOREX** 📚
+
+Understand what you're trading!
+
+### **Study Topics:**
+- **Market hours:** When is EUR/USD most active?
+- **Economic calendar:** What news affects EUR/USD?
+- **Correlation:** How do different pairs relate?
+- **Spreads & slippage:** Real-world trading costs
+- **Broker comparison:** Which is best for your style?
+
+### **Free Resources:**
+- BabyPips.com (Forex education)
+- Investing.com (Economic calendar)
+- TradingView (Free charts & analysis)
+
+---
+
+## 🎯 **OPTION 7: REST & PREPARE** 😴
+
+**You've earned it!** You've accomplished SO MUCH:
+```
+Week 1: ✅ Git & GitHub
+Week 2: ✅ Complete strategy development & validation
+Week 3 Day 1: ✅ Paper trading system
+
+Take a break, come back fresh for Sunday! 💪
+```
+
+---
+
+## ⏰ **SUNDAY SCHEDULE:**
+
+**Recommended timing:**
+```
+4:00 PM - Market Opens
+4:30 PM - Start your paper trader
+5:30 PM - Review first hour results
+6:00 PM - Continue or stop
+
+OR
+
+7:00 PM - Start fresh (after dinner)
+8:00 PM - 60-minute session
+9:00 PM - Review & analyze
+
