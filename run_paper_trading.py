@@ -10,7 +10,7 @@ trader = PaperTrader(
     symbol="EURUSD=X",       # EUR/USD forex pair
     initial_capital=1000,    # Start with $1,000 fake money
     rsi_buy=25,             # Buy when RSI < 25 (from walk-forward)
-    rsi_sell=75             # Sell when RSI > 75 (from walk-forward)
+    rsi_sell=75,            # Sell when RSI > 75 (from walk-forward)
 )
 
 # Run paper trading session
