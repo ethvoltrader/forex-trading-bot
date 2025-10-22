@@ -44,9 +44,10 @@ class PaperTrader:
         if simulation_mode:
             print(f"🎮 Simulation:       ON (Volatility: {simulation_volatility})")
         print("="*70 + "\n")
-# Initialize Telegram notifier
+        
+        # Initialize Telegram notifier
         self.notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
-        print("📱 Telegram notifications: ENABLED")
+        print("📱 Telegram notifications: ENABLED\n")
     
     def generate_simulated_price(self):
         change_pct = np.random.normal(self.simulated_trend, self.simulation_volatility)
@@ -108,18 +109,18 @@ class PaperTrader:
         self.entry_price = price
         self.entry_time = datetime.now()
         print(f"\n🔵 OPENING LONG @ ${price:.5f} | Capital: ${self.capital:,.2f}")
-# Send Telegram notification
-    try:
-        self.notifier.notify_trade_opened(
-            pair=self.symbol,
-            entry_price=price,
-            position_size=self.capital * 0.05,  # 5% position size
-            rsi=0,  # We'll fix this in a moment
-            capital=self.capital
-        )
-    except Exception as e:
-        print(f"⚠️  Telegram alert failed: {e}")
-
+        
+        # Send Telegram notification
+        try:
+            self.notifier.notify_trade_opened(
+                pair=self.symbol,
+                entry_price=price,
+                position_size=self.capital * 0.05,
+                rsi=0,
+                capital=self.capital
+            )
+        except Exception as e:
+            print(f"⚠️  Telegram alert failed: {e}")
     
     def close_position(self, price, reason):
         if self.position != 'LONG':
@@ -147,8 +148,8 @@ class PaperTrader:
         print(f"   Entry: ${self.entry_price:.5f} → Exit: ${price:.5f}")
         print(f"   P&L: ${pnl_dollar:+.2f} ({pnl_pct*100:+.2f}%)")
         print(f"   Held: {holding_time:.1f} min | Capital: ${self.capital:,.2f}")
-# Send Telegram notification
-# Send Telegram notification
+        
+        # Send Telegram notification
         try:
             self.notifier.notify_trade_closed(
                 pair=self.symbol,
@@ -164,7 +165,8 @@ class PaperTrader:
             print(f"⚠️  Telegram alert failed: {e}")
         
         self.position = None
-        self.entry_price = 0    
+        self.entry_price = 0
+    
     def run_trading_cycle(self):
         current_price = self.fetch_current_price()
         if current_price is None:
@@ -287,37 +289,30 @@ class PaperTrader:
                 print(f"   {emoji} Trade {i}: {t['reason']}")
                 print(f"      ${t['entry_price']:.5f} → ${t['exit_price']:.5f}")
                 print(f"      P&L: ${t['pnl_dollar']:+.2f} ({t['pnl_pct']:+.2f}%) | Held: {t['holding_time_min']:.1f} min")
+        
         else:
             print(f"\n📈 No trades executed")
         
         print("\n" + "="*70)
-        
         # Send Telegram daily summary
-        try:
-            # Prepare trade history for Telegram
-            trade_history = []
-            for trade in self.trades:
-                trade_history.append({
-                    'timestamp': trade['exit_time'],
-                    'pair': self.symbol,
-                    'entry_price': trade['entry_price'],
-                    'exit_price': trade['exit_price'],
-                    'pnl': trade['pnl_dollar'],
-                    'pnl_pct': trade['pnl_pct'] * 100,
-                    'duration_min': trade['holding_time_min'],
-                    'capital': self.capital
-                })
-            
-            # Find the most recent chart if it exists
-            import glob
-            chart_files = glob.glob('charts/performance_dashboard_*.png')
-            latest_chart = max(chart_files) if chart_files else None
-            
-            # Send summary
-            if trade_history:
+        if self.trades:
+            try:
+                import glob
+                trade_history = []
+                for trade in self.trades:
+                    trade_history.append({
+                        'timestamp': datetime.now(),
+                        'pair': self.symbol,
+                        'entry_price': trade['entry_price'],
+                        'exit_price': trade['exit_price'],
+                        'pnl': trade['pnl_dollar'],
+                        'pnl_pct': trade['pnl_pct'],
+                        'duration_min': trade['holding_time_min'],
+                        'capital': self.capital
+                    })
+                
+                chart_files = glob.glob('charts/performance_dashboard_*.png')
+                latest_chart = max(chart_files) if chart_files else None
                 self.notifier.notify_daily_summary(trade_history, chart_path=latest_chart)
-            else:
-                print("📱 No trades to send to Telegram")
-        except Exception as e:
-            print(f"⚠️  Telegram summary failed: {e}")
-
+            except Exception as e:
+                print(f"⚠️  Telegram summary failed: {e}")
