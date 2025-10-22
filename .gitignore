@@ -208,3 +208,5 @@ __marimo__/
 venv/
 *.csv
 *.png
+email_config.py
+telegram_config.py

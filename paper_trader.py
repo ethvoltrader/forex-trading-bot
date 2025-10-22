@@ -5,6 +5,8 @@ import time
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
+from telegram_notifier import TelegramNotifier
+from telegram_config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 class PaperTrader:
     def __init__(self, symbol="EURUSD=X", initial_capital=1000, 
@@ -42,6 +44,9 @@ class PaperTrader:
         if simulation_mode:
             print(f"🎮 Simulation:       ON (Volatility: {simulation_volatility})")
         print("="*70 + "\n")
+# Initialize Telegram notifier
+        self.notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+        print("📱 Telegram notifications: ENABLED")
     
     def generate_simulated_price(self):
         change_pct = np.random.normal(self.simulated_trend, self.simulation_volatility)
@@ -103,6 +108,18 @@ class PaperTrader:
         self.entry_price = price
         self.entry_time = datetime.now()
         print(f"\n🔵 OPENING LONG @ ${price:.5f} | Capital: ${self.capital:,.2f}")
+# Send Telegram notification
+    try:
+        self.notifier.notify_trade_opened(
+            pair=self.symbol,
+            entry_price=price,
+            position_size=self.capital * 0.05,  # 5% position size
+            rsi=0,  # We'll fix this in a moment
+            capital=self.capital
+        )
+    except Exception as e:
+        print(f"⚠️  Telegram alert failed: {e}")
+
     
     def close_position(self, price, reason):
         if self.position != 'LONG':
@@ -130,10 +147,24 @@ class PaperTrader:
         print(f"   Entry: ${self.entry_price:.5f} → Exit: ${price:.5f}")
         print(f"   P&L: ${pnl_dollar:+.2f} ({pnl_pct*100:+.2f}%)")
         print(f"   Held: {holding_time:.1f} min | Capital: ${self.capital:,.2f}")
+# Send Telegram notification
+# Send Telegram notification
+        try:
+            self.notifier.notify_trade_closed(
+                pair=self.symbol,
+                entry_price=self.entry_price,
+                exit_price=price,
+                pnl=pnl_dollar,
+                pnl_pct=pnl_pct * 100,
+                duration_min=holding_time,
+                capital=self.capital,
+                reason=reason
+            )
+        except Exception as e:
+            print(f"⚠️  Telegram alert failed: {e}")
         
         self.position = None
-        self.entry_price = 0
-    
+        self.entry_price = 0    
     def run_trading_cycle(self):
         current_price = self.fetch_current_price()
         if current_price is None:
@@ -260,3 +291,33 @@ class PaperTrader:
             print(f"\n📈 No trades executed")
         
         print("\n" + "="*70)
+        
+        # Send Telegram daily summary
+        try:
+            # Prepare trade history for Telegram
+            trade_history = []
+            for trade in self.trades:
+                trade_history.append({
+                    'timestamp': trade['exit_time'],
+                    'pair': self.symbol,
+                    'entry_price': trade['entry_price'],
+                    'exit_price': trade['exit_price'],
+                    'pnl': trade['pnl_dollar'],
+                    'pnl_pct': trade['pnl_pct'] * 100,
+                    'duration_min': trade['holding_time_min'],
+                    'capital': self.capital
+                })
+            
+            # Find the most recent chart if it exists
+            import glob
+            chart_files = glob.glob('charts/performance_dashboard_*.png')
+            latest_chart = max(chart_files) if chart_files else None
+            
+            # Send summary
+            if trade_history:
+                self.notifier.notify_daily_summary(trade_history, chart_path=latest_chart)
+            else:
+                print("📱 No trades to send to Telegram")
+        except Exception as e:
+            print(f"⚠️  Telegram summary failed: {e}")
+
